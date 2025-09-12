@@ -2,16 +2,16 @@ library(tidyverse)
 library(readxl)
 library(writexl)
 
+#Pasar de wide a long
 
-
-datos <- read_excel("GenDB.xlsx") %>%
+db_wide <- read_excel("GenDB.xlsx") %>%
         mutate(
                 Id = as.integer(Id),
                 fechanac = format(as.Date(fechanac), "%d/%m/%Y"),
                 fechapet = format(as.Date(fechapet), "%d/%m/%Y"),
         )
 
-datos_long <- datos %>%
+db_long <- db_wide %>%
         pivot_longer(
                 cols = matches("^(gen|g_c|g_nm|g_p|g_imp|g_vaf|g_depth|g_tier)[0-9]+$"),
                 names_to = c(".value", "orden"),
@@ -23,4 +23,9 @@ datos_long <- datos %>%
                 g_vaf   = as.numeric(g_vaf)
         )
 
-write_xlsx(datos_long, "GenDB_long.xlsx")
+db_long_clean <- db_long %>%
+        filter(!(orden != 1 & (is.na(gen) | gen == "")))
+
+
+write_xlsx(db_long, "GenDB_long.xlsx")
+write_xlsx(db_long_clean, "GenDB_long_clean.xlsx")
