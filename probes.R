@@ -1,5 +1,7 @@
 library(tidyverse)
 library(readxl)
+library(writexl)
+
 
 
 datos <- read_excel("GenDB.xlsx") %>%
@@ -20,3 +22,5 @@ datos_long <- datos %>%
                 g_depth = as.integer(g_depth),
                 g_vaf   = as.numeric(g_vaf)
         )
+
+write_xlsx(datos_long, "GenDB_long.xlsx")
