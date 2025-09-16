@@ -75,9 +75,13 @@ server <- function(input, output, session) {
                         mutate(
                                 orden = as.integer(orden),
                                 g_depth = as.integer(g_depth),
-                                g_vaf = as.numeric(g_vaf)
+                                g_vaf = as.numeric(g_vaf),
+                                g_imp = factor(g_imp)
                         ) %>%
                         filter(!(orden != 1 & (is.na(gen) | gen == "")))
+                #para el cálculo de mutaciones por paciente
+                df <- df %>%
+                        mutate(contaje = ifelse(orden == 1 & is.na(gen), 0, orden))
                 #lo que devuelves
                 df
         })
@@ -185,6 +189,7 @@ server <- function(input, output, session) {
         output$resumen_dt <- DT::renderDT({
                 req(datos_wide())
                 df <- datos_wide()
+                df2 <- datos_long()
                 dx_texto <- df %>%
                         count(Dx, sort = TRUE) %>%
                         mutate(
@@ -196,12 +201,14 @@ server <- function(input, output, session) {
                 resumen <- tibble(
                         Descriptivo = c("Periodo de estudio",
                                         "Tamaño muestral", 
-                                        "Edad media (SD)",
-                                        "Diagnósticos"),
+                                        "Edad, media (SD)",
+                                        "Diagnósticos",
+                                        "Media de mutaciones por paciente"),
                         Valor = c(paste0("Desde ", format(min(df$fechapet, na.rm = TRUE), "%d/%m/%Y"),", hasta ",format(max(df$fechapet, na.rm = TRUE), "%d/%m/%Y")),
                                 nrow(df),
                                 paste0(round(mean(df$edad, na.rm = TRUE), 1)," (",round(sd(df$edad, na.rm = TRUE), 1),")"),
-                                dx_texto
+                                dx_texto,
+                                paste0(round(mean(df2$contaje, na.rm = TRUE), 1),". min: ",min(df2$contaje, na.rm = TRUE),", máx: ",max(df2$contaje, na.rm = TRUE))
                                   )
                 )
                 DT::datatable(resumen,
@@ -219,7 +226,7 @@ server <- function(input, output, session) {
         output$graph_mut <- renderUI({
                 req(mut15())
                 tagList(
-                        h3("Frecuencia de mutaciones", style = "text-align: center;"),
+                        h3("Frecuencia de aparición de mutaciones en pacientes", style = "text-align: center;"),
                         plotOutput("plot_mut15", height = "400px")
                 )
         })

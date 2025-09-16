@@ -27,7 +27,8 @@ db_long <- db_wide %>%
         mutate(
                 orden = as.integer(orden),
                 g_depth = as.integer(g_depth),
-                g_vaf = as.numeric(g_vaf)
+                g_vaf = as.numeric(g_vaf),
+                g_imp = factor(g_imp)
         ) %>%
         filter(!(orden != 1 & (is.na(gen) | gen == "")))
 
@@ -55,6 +56,10 @@ mutaciones <- bind_cols(Id = db_wide$Id, indicadores_df)
 
 #eliminar innecesarios
 rm(cols_gen, genes_unicos, indicadores, indicadores_df)
+
+#contaje mutaciones
+db_long <- db_long %>%
+        mutate(contaje = ifelse(orden == 1 & is.na(gen), 0, orden))
 
 
 
