@@ -32,8 +32,8 @@ wide_to_long <- function(file_path) {
                 filter(!(orden != 1 & (is.na(gen) | gen == "")))
         
         # Opcional: guardar en disco
-        write_xlsx(db_long, "GenDB_long.xlsx")
-        write_xlsx(db_long_clean, "GenDB_long_clean.xlsx")
+        #write_xlsx(db_long, "GenDB_long.xlsx")
+        #write_xlsx(db_long_clean, "GenDB_long_clean.xlsx")
         
         return(db_long_clean)
 }
