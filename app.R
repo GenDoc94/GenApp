@@ -5,6 +5,7 @@ library(tidyr)
 library(tidyverse)
 library(writexl)
 library(ggplot2)
+library(DT)
 
 
 ui <- fluidPage(
@@ -15,7 +16,7 @@ ui <- fluidPage(
         
         
         
-        titlePanel("Prueba"),
+        titlePanel("GenApp"),
         sidebarLayout(
                 sidebarPanel(
                         fileInput("archivo", "Sube el Excel", accept = c(".xls", ".xlsx"))
@@ -32,6 +33,7 @@ ui <- fluidPage(
                                                         uiOutput("button_long"))
                                          )),
                                 tabPanel("Descriptivo",
+                                         uiOutput("descriptive"),
                                          uiOutput("graph_mut")),
                                 tabPanel("Pestaña 3",
                                          h3("Contenido pestaña 3"))
@@ -51,8 +53,10 @@ server <- function(input, output, session) {
                         #Poner la base bonita
                         mutate(
                                 Id = as.integer(Id),
-                                fechanac = format(as.Date(fechanac), "%d/%m/%Y"),
-                                fechapet = format(as.Date(fechapet), "%d/%m/%Y")
+                                fechanac = as.Date(fechanac),
+                                fechapet = as.Date(fechapet),
+                                edad = as.numeric(difftime(fechapet, fechanac, units = "days")) / 365.25,
+                                Dx = factor(Dx)
                         )
                 
                 #lo que devuelves
@@ -118,9 +122,6 @@ server <- function(input, output, session) {
         
         
         #TABLA WIDE (UI)
-        output$tabla_W <- renderTable({
-                head(datos_wide()[, 1:5], 10)
-        })
         output$tabla_W_ui <- renderUI({
                 req(datos_wide())
                 tagList(
@@ -128,17 +129,24 @@ server <- function(input, output, session) {
                         div(style = "width:1px; background-color:#ccc;", class = "tabla-pequena", tableOutput("tabla_W"))       
                 )
         })
+        output$tabla_W <- renderTable({
+                head(datos_wide()[, 1:5] %>%
+                             mutate(fechanac = format(fechanac, "%d/%m/%Y"),
+                                    fechapet = format(fechapet, "%d/%m/%Y")), 10)
+        })
         
         #TABLA LONG (UI)
-        output$tabla_L <- renderTable({
-                head(datos_long()[, 1:5], 10)
-        })
         output$tabla_L_ui <- renderUI({
                 req(datos_long())
                 tagList(
                         h3("Tabla Long", style = "text-align: center;"),
                         div(style = "width:1px; background-color:#ccc;", class = "tabla-pequena", tableOutput("tabla_L"))       
                 )
+        })
+        output$tabla_L <- renderTable({
+                head(datos_long()[, 1:5] %>%
+                             mutate(fechanac = format(fechanac, "%d/%m/%Y"),
+                                    fechapet = format(fechapet, "%d/%m/%Y")), 10)
         })
         
         #DESCARGAR WIDE
@@ -164,6 +172,47 @@ server <- function(input, output, session) {
                         write.csv(datos_long(), file, row.names = TRUE)
                 }
         )
+        
+        #DESCRIPTIVE
+        output$descriptive <- renderUI({
+                req(datos_wide())
+                tagList(
+                        h3("Tabla Resumen", style = "text-align: center;"),
+                        DT::DTOutput("resumen_dt")
+                )
+                
+        })
+        output$resumen_dt <- DT::renderDT({
+                req(datos_wide())
+                df <- datos_wide()
+                dx_texto <- df %>%
+                        count(Dx, sort = TRUE) %>%
+                        mutate(
+                                texto = paste0(Dx, ": ", n, " (", round(100 * n / n_total, 1), "%)")
+                        ) %>%
+                        pull(texto) %>%
+                        paste(collapse = "<br>")  # saltos de línea
+                
+                resumen <- tibble(
+                        Descriptivo = c("Periodo de estudio",
+                                        "Tamaño muestral", 
+                                        "Edad media (SD)",
+                                        "Diagnósticos"),
+                        Valor = c(paste0("Desde ", format(min(df$fechapet, na.rm = TRUE), "%d/%m/%Y"),", hasta ",format(max(df$fechapet, na.rm = TRUE), "%d/%m/%Y")),
+                                nrow(df),
+                                paste0(round(mean(df$edad, na.rm = TRUE), 1)," (",round(sd(df$edad, na.rm = TRUE), 1),")"),
+                                dx_texto
+                                  )
+                )
+                DT::datatable(resumen,
+                              escape = FALSE,
+                              options = list(dom = 't',
+                                             ordering = FALSE),
+                              rownames = FALSE)
+        })
+        
+        
+        
         
         
         #GRÁFICA MUTACIONES

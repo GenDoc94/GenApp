@@ -4,13 +4,19 @@ library(writexl)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(DT)
 
 db_wide <- read_excel("GenDB.xlsx") %>%
         mutate(
                 Id = as.integer(Id),
-                fechanac = format(as.Date(fechanac), "%d/%m/%Y"),
-                fechapet = format(as.Date(fechapet), "%d/%m/%Y")
+                fechanac = as.Date(fechanac),
+                fechapet = as.Date(fechapet),
+                edad = as.numeric(difftime(fechapet, fechanac, units = "days")) / 365.25,
+                Dx = factor(Dx)
         )
+
+db_wide$edad <- (db_wide$fechapet - db_wide$fechanac)/365.25
+
 
 db_long <- db_wide %>%
         pivot_longer(
