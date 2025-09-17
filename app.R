@@ -56,7 +56,8 @@ server <- function(input, output, session) {
                                 fechanac = as.Date(fechanac),
                                 fechapet = as.Date(fechapet),
                                 edad = as.numeric(difftime(fechapet, fechanac, units = "days")) / 365.25,
-                                Dx = factor(Dx)
+                                Dx = factor(Dx),
+                                sexo = factor(sexo)
                         )
                 
                 #lo que devuelves
@@ -197,18 +198,28 @@ server <- function(input, output, session) {
                         ) %>%
                         pull(texto) %>%
                         paste(collapse = "<br>")  # saltos de línea
+                sexo_texto <- df %>%
+                        count(sexo, sort = TRUE) %>%
+                        mutate(
+                                texto = paste0(sexo, ": ", n, " (", round(100 * n / n_total, 1), "%)")
+                        ) %>%
+                        pull(texto) %>%
+                        paste(collapse = "; ")
+                
                 
                 resumen <- tibble(
                         Descriptivo = c("Periodo de estudio",
-                                        "Tamaño muestral", 
+                                        "Tamaño muestral",
+                                        "Sexo",
                                         "Edad, media (SD)",
                                         "Diagnósticos",
                                         "Media de mutaciones por paciente"),
                         Valor = c(paste0("Desde ", format(min(df$fechapet, na.rm = TRUE), "%d/%m/%Y"),", hasta ",format(max(df$fechapet, na.rm = TRUE), "%d/%m/%Y")),
                                 nrow(df),
+                                sexo_texto,
                                 paste0(round(mean(df$edad, na.rm = TRUE), 1)," (",round(sd(df$edad, na.rm = TRUE), 1),")"),
                                 dx_texto,
-                                paste0(round(mean(df2$contaje, na.rm = TRUE), 1),". min: ",min(df2$contaje, na.rm = TRUE),", máx: ",max(df2$contaje, na.rm = TRUE))
+                                paste0(round(mean(df2$contaje, na.rm = TRUE), 1),". (min: ",min(df2$contaje, na.rm = TRUE),", máx: ",max(df2$contaje, na.rm = TRUE),")")
                                   )
                 )
                 DT::datatable(resumen,
