@@ -62,8 +62,6 @@ db_long <- db_long %>%
         mutate(contaje = ifelse(orden == 1 & is.na(gen), 0, orden))
 
 
-
-
 #Calcula los % de cada mutación
 mut15 <- mutaciones %>%
         summarise(across(where(is.numeric) & !Id, ~ round(mean(.x, na.rm = TRUE) * 100, 1))) %>%
@@ -89,4 +87,35 @@ ggplot(mut15, aes(x=gen, y=porcentaje)) +
         geom_text(aes(label = paste0(round(porcentaje,1), "%")), 
                   hjust = -0.1, size = 3) +  # coloca texto a la derecha de la barra
         coord_flip()
+
+
+#mutaciones frecuencia
+dbgen <- as.data.frame(table(db_long$gen, db_long$g_imp))
+colnames(dbgen) <- c("Gen", "MutationType", "Frequency")
+
+gene_freq <- dbgen %>%
+        group_by(Gen) %>%
+        summarise(TotalFrequency = sum(Frequency)) %>%
+        arrange(desc(TotalFrequency))  # Ordenar de mayor a menor
+
+# Reordenar los factores de 'Gen' según la frecuencia total
+dbgen$Gen <- factor(dbgen$Gen, levels = gene_freq$Gen)
+
+#Gráfica mutaciones y tipos
+ggplot(dbgen, aes(x = Gen, y = Frequency, fill = MutationType)) +
+        geom_bar(stat = "identity") +
+        theme_minimal() +
+        labs(
+                title = "Frecuencia de Mutaciones por Gen",
+                x = "Gen",
+                y = "Frecuencia",
+                fill = "Tipo de Mutación"
+        ) +
+        theme(
+                axis.text.x = element_text(angle = 90, hjust = 1),
+                axis.title.x = element_text(size = 12),
+                axis.title.y = element_text(size = 12),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)
+        )
 

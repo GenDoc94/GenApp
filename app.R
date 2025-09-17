@@ -34,8 +34,9 @@ ui <- fluidPage(
                                          )),
                                 tabPanel("Descriptivo",
                                          uiOutput("descriptive"),
-                                         uiOutput("graph_mut")),
-                                tabPanel("Pestaña 3",
+                                         uiOutput("graph_mut"),
+                                         uiOutput("graph_mutfreq")),
+                                tabPanel("Analítico",
                                          h3("Contenido pestaña 3"))
                         )
                 )
@@ -121,10 +122,22 @@ server <- function(input, output, session) {
                         slice_max(order_by = porcentaje, n=15)
                 return(mut)
         })
-        
 
         
-        
+        #MUTATIONSTYPE
+        dbgen <- reactive({
+                req(datos_long())
+                db_long <- datos_long()
+                dbgen <- as.data.frame(table(db_long$gen, db_long$g_imp))
+                colnames(dbgen) <- c("Gen", "MutationType", "Frequency")
+                gene_freq <- dbgen %>%
+                        group_by(Gen) %>%
+                        summarise(TotalFrequency = sum(Frequency)) %>%
+                        arrange(desc(TotalFrequency))  # Ordenar de mayor a menor
+                dbgen$Gen <- factor(dbgen$Gen, levels = gene_freq$Gen)
+                return(dbgen)
+        })
+
         
         #TABLA WIDE (UI)
         output$tabla_W_ui <- renderUI({
@@ -229,15 +242,12 @@ server <- function(input, output, session) {
                               rownames = FALSE)
         })
         
-        
-        
-        
-        
-        #GRÁFICA MUTACIONES
+
+        #GRÁFICA PACIENTES CON MUTACIONES
         output$graph_mut <- renderUI({
                 req(mut15())
                 tagList(
-                        h3("Frecuencia de aparición de mutaciones en pacientes", style = "text-align: center;"),
+                        h3("Porcentaje de pacientes con las mutaciones más frecuentes", style = "text-align: center;"),
                         plotOutput("plot_mut15", height = "400px")
                 )
         })
@@ -253,9 +263,40 @@ server <- function(input, output, session) {
                         geom_text(aes(label = paste0(round(porcentaje,1), "%")), 
                                   hjust = -0.1, size = 3) +  # coloca texto a la derecha de la barra
                         coord_flip()
-                
         })
         
+        
+        
+        #GRÁFICA PACIENTES CON MUTACIONES
+        output$graph_mutfreq <- renderUI({
+                req(dbgen())
+                tagList(
+                        h3("Tipo de mutaciones de todos los genes mutados", style = "text-align: center;"),
+                        plotOutput("plot_mutfreq", height = "400px")
+                )
+        })
+        output$plot_mutfreq <- renderPlot({
+                req(dbgen())
+                ggplot(dbgen(), aes(x = Gen, y = Frequency, fill = MutationType)) +
+                        geom_bar(stat = "identity") +
+                        geom_text(aes(label = ifelse(Frequency > 0, as.character(Frequency), "")), 
+                                  position = position_stack(vjust = 0.5),  # Posicionar el texto en el medio de cada barra apilada
+                                  size = 3, color = "white") +  # Color blanco para el texto
+                        theme_minimal() +
+                        labs(
+                                title = "Frecuencia de Mutaciones por Gen",
+                                x = "Gen",
+                                y = "Frecuencia",
+                                fill = "Tipo de Mutación"
+                        ) +
+                        theme(
+                                axis.text.x = element_text(angle = 90, hjust = 1),
+                                axis.title.x = element_text(size = 12),
+                                axis.title.y = element_text(size = 12),
+                                legend.title = element_text(size = 12),
+                                legend.text = element_text(size = 10)
+                        )
+        })        
         
         
         
