@@ -6,6 +6,8 @@ library(tidyverse)
 library(writexl)
 library(ggplot2)
 library(DT)
+library(ComplexHeatmap)
+library(circlize)
 
 
 ui <- fluidPage(
@@ -35,7 +37,8 @@ ui <- fluidPage(
                                 tabPanel("Descriptivo",
                                          uiOutput("descriptive"),
                                          uiOutput("graph_mut"),
-                                         uiOutput("graph_mutfreq")),
+                                         uiOutput("graph_mutfreq"),
+                                         uiOutput("graph_op")),
                                 tabPanel("Analítico",
                                          h3("Contenido pestaña 3"))
                         )
@@ -138,6 +141,65 @@ server <- function(input, output, session) {
                 return(dbgen)
         })
 
+
+        #ONCOPRINTER COMPUTATION
+        
+        
+        # Seleccionar columnas y asegurarse de que sean character
+        db_op <- reactive({
+                req(datos_long())
+                db_long <- datos_long()
+                db_op <- db_long %>% 
+                        select(Id, gen, g_imp) %>%
+                        mutate(
+                                Id = as.character(Id),
+                                gen = as.character(gen),
+                                g_imp = as.character(g_imp)
+                        )
+                
+                # Reemplazar gen vacío por NA y g_imp vacío por ""
+                db_op <- db_op %>%
+                        mutate(
+                                gen = ifelse(gen == "", NA, gen),
+                                g_imp = ifelse(g_imp == "", "", g_imp)
+                        )
+                
+                # Todos los pacientes y genes
+                all_ids <- sort(unique(db_op$Id))
+                all_genes <- sort(unique(db_op$gen[!is.na(db_op$gen)]))
+                
+                # Crear matriz vacía de caracteres
+                mat <- matrix("", nrow = length(all_genes), ncol = length(all_ids),
+                              dimnames = list(all_genes, all_ids))
+                
+                # Rellenar la matriz con las mutaciones
+                for(i in seq_len(nrow(db_op))){
+                        pid <- db_op$Id[i]
+                        gene <- db_op$gen[i]
+                        mut <- db_op$g_imp[i]
+                        if(!is.na(gene) & mut != ""){
+                                if(mat[gene, pid] == ""){
+                                        mat[gene, pid] <- mut
+                                } else {
+                                        mat[gene, pid] <- paste(mat[gene, pid], mut, sep=";")
+                                }
+                        }
+                }
+                
+                return(mat)
+        })
+        
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         #TABLA WIDE (UI)
         output$tabla_W_ui <- renderUI({
@@ -219,6 +281,11 @@ server <- function(input, output, session) {
                         pull(texto) %>%
                         paste(collapse = "; ")
                 
+                count_mutation <- df2 %>% 
+                        filter(contaje != 0) %>% 
+                        nrow()
+                
+                
                 
                 resumen <- tibble(
                         Descriptivo = c("Periodo de estudio",
@@ -226,12 +293,14 @@ server <- function(input, output, session) {
                                         "Sexo",
                                         "Edad, media (SD)",
                                         "Diagnósticos",
+                                        "Número total de mutaciones",
                                         "Media de mutaciones por paciente"),
                         Valor = c(paste0("Desde ", format(min(df$fechapet, na.rm = TRUE), "%d/%m/%Y"),", hasta ",format(max(df$fechapet, na.rm = TRUE), "%d/%m/%Y")),
                                 nrow(df),
                                 sexo_texto,
                                 paste0(round(mean(df$edad, na.rm = TRUE), 1)," (",round(sd(df$edad, na.rm = TRUE), 1),")"),
                                 dx_texto,
+                                count_mutation,
                                 paste0(round(mean(df2$contaje, na.rm = TRUE), 1),". (min: ",min(df2$contaje, na.rm = TRUE),", máx: ",max(df2$contaje, na.rm = TRUE),")")
                                   )
                 )
@@ -298,7 +367,57 @@ server <- function(input, output, session) {
                         )
         })        
         
-        
+        #GRÁFICA ONCOPRINTER
+        output$graph_op <- renderUI({
+                req(db_op())
+                tagList(
+                        h3("OncoPrinter", style = "text-align: center;"),
+                        plotOutput("plot_op", height = "400px")
+                )
+        })
+        output$plot_op <- renderPlot({
+                req(db_op())
+                
+                # Definir funciones de color
+                alter_fun = list(
+                        background = function(x, y, w, h) grid::grid.rect(x, y, w, h,
+                                                                          gp = grid::gpar(fill = "white", col = "lightgrey")),
+                        Missense  = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9,
+                                                                         gp = grid::gpar(fill = "#2ca02c", col = NA)),
+                        Nonsense  = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9,
+                                                                         gp = grid::gpar(fill = "#d62728", col = NA)),
+                        Frameshift = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9,
+                                                                          gp = grid::gpar(fill = "#ff7f0e", col = NA)),
+                        Splicing  = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9,
+                                                                         gp = grid::gpar(fill = "#1f77b4", col = NA)),
+                        Inframe   = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9,
+                                                                         gp = grid::gpar(fill = "#9467bd", col = NA))
+                )
+                
+                col = c(
+                        Missense = "#2ca02c",
+                        Nonsense = "#d62728",
+                        Frameshift = "#ff7f0e",
+                        Splicing = "#1f77b4",
+                        Inframe = "#9467bd"
+                )
+                
+                # Dibujar OncoPrint
+                oncoPrint(
+                        db_op(),
+                        alter_fun = alter_fun,
+                        col = col,
+                        remove_empty_columns = FALSE,
+                        remove_empty_rows = FALSE,
+                        #column_title = "Pacientes",
+                        row_title = "Genes",
+                        heatmap_legend_param = list(title = "Tipo de mutación")
+                )
+                
+                
+                
+                
+        })
         
         
 }
