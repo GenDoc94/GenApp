@@ -32,6 +32,8 @@ ui <- fluidPage(
                 ),
                 mainPanel(
                         tabsetPanel(
+                                tabPanel("Description",
+                                         h3("Pending...")),
                                 tabPanel("Wide y Long",
                                          fluidRow(
                                                  column(6,
@@ -65,10 +67,11 @@ server <- function(input, output, session) {
         outputOptions(output, "archivoSubido", suspendWhenHidden = FALSE)
         
         output$nivel_dx <- renderUI({
-                req(datos_wide())
-                # Extraer columna Dx
-                dx <- datos_wide()[[ "Dx" ]]
-                selectInput("nivel", "Elige un diagnóstico", choices = levels(dx))
+                
+                req(input$archivo)
+                df_original <- read_excel(input$archivo$datapath) %>%
+                        mutate(Dx = factor(Dx))
+                selectInput("nivel", "Elige un diagnóstico", choices = levels(df_original$Dx))
         })
         
         
@@ -87,17 +90,17 @@ server <- function(input, output, session) {
                                 sexo = factor(sexo)
                         )
                 
-                #if(isTRUE(input$filtrar)){
-                #        req(input$nivel)
-                #        df <- df[df$Dx %in% input$nivel, ] 
-                #        df
-                #        return()
-                #} else {
-                #        df
-                #}
+                
+                if(isTRUE(input$filtrar) && !is.null(input$nivel) && input$nivel != ""){
+                        df <- df %>% filter(Dx %in% input$nivel)
+                }
+                
+                df
+                
+                
                 
                 #lo que devuelves
-                df
+                #df
         })
         
         #DATOS LONG
@@ -346,15 +349,15 @@ server <- function(input, output, session) {
 
         #GRÁFICA PACIENTES CON MUTACIONES
         output$graph_mut <- renderUI({
-                req(mut15())
+                req(mutations())
                 tagList(
-                        h3("Porcentaje de pacientes con las mutaciones más frecuentes", style = "text-align: center;"),
-                        plotOutput("plot_mut15", height = "400px")
+                        h3("Porcentaje de pacientes con las mutaciones observadas", style = "text-align: center;"),
+                        plotOutput("plot_mut", height = "400px")
                 )
         })
-        output$plot_mut15 <- renderPlot({
-                req(mut15())
-                ggplot(mut15(), aes(x=gen, y=porcentaje)) +
+        output$plot_mut <- renderPlot({
+                req(mutations())
+                ggplot(mutations(), aes(x=gen, y=porcentaje)) +
                         geom_bar(stat = "identity") +
                         theme_minimal() +
                         labs(title = paste0("Top 15 genes +fr mutados (n = ", nrow(datos_wide()), ")"),
