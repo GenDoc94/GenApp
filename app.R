@@ -21,7 +21,14 @@ ui <- fluidPage(
         titlePanel("GenApp"),
         sidebarLayout(
                 sidebarPanel(
-                        fileInput("archivo", "Sube el Excel", accept = c(".xls", ".xlsx"))
+                        fileInput("archivo", "Sube el Excel", accept = c(".xls", ".xlsx")),
+                        conditionalPanel(
+                                condition = "output.archivoSubido",
+                                checkboxInput("filtrar", "Filtrar por Dx", FALSE)
+                        ),
+                        conditionalPanel(
+                                condition = "input.filtrar == true",
+                                uiOutput("nivel_dx"))
                 ),
                 mainPanel(
                         tabsetPanel(
@@ -50,6 +57,22 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
         
+        # Creamos un "indicador" lógico en el servidor
+        output$archivoSubido <- reactive({
+                return(!is.null(input$archivo))
+        })
+        # Esto es necesario para que reactive se use en un conditionalPanel
+        outputOptions(output, "archivoSubido", suspendWhenHidden = FALSE)
+        
+        output$nivel_dx <- renderUI({
+                req(datos_wide())
+                # Extraer columna Dx
+                dx <- datos_wide()[[ "Dx" ]]
+                selectInput("nivel", "Elige un diagnóstico", choices = levels(dx))
+        })
+        
+        
+
         #DATOS WIDE
         datos_wide <- reactive({
                 req(input$archivo)
@@ -63,6 +86,15 @@ server <- function(input, output, session) {
                                 Dx = factor(Dx),
                                 sexo = factor(sexo)
                         )
+                
+                #if(isTRUE(input$filtrar)){
+                #        req(input$nivel)
+                #        df <- df[df$Dx %in% input$nivel, ] 
+                #        df
+                #        return()
+                #} else {
+                #        df
+                #}
                 
                 #lo que devuelves
                 df
