@@ -449,9 +449,9 @@ server <- function(input, output, session) {
                         col = col,
                         remove_empty_columns = FALSE,
                         remove_empty_rows = FALSE,
-                        show_column_names = TRUE,
-                        column_names_side = "top",
-                        column_names_rot = 45,
+                        #show_column_names = TRUE,
+                        #column_names_side = "top",
+                        #column_names_rot = 45,
                         row_title = "Genes",
                         heatmap_legend_param = list(title = "Tipo de mutación")
                 )
