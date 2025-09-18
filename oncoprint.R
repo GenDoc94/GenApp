@@ -73,8 +73,8 @@ oncoPrint(
         remove_empty_rows = FALSE,
         column_title = "Pacientes",
         row_title = "Genes",
-        show_column_names = TRUE,
-        column_names_side = "top",
-        column_names_rot = 45,
+        #show_column_names = TRUE,
+        #column_names_side = "top",
+        #column_names_rot = 45,
         heatmap_legend_param = list(title = "Tipo de mutación")
 )

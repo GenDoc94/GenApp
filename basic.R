@@ -33,6 +33,8 @@ db_long <- db_wide %>%
         ) %>%
         filter(!(orden != 1 & (is.na(gen) | gen == "")))
 
+#db_op <- db_long %>% select(Id, gen, g_imp)
+
 
 # Columnas de genes en tu base wide
 cols_gen <- paste0("gen", 1:12)
