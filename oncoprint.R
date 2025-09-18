@@ -15,7 +15,7 @@ db_op <- db_long %>%
 db_op <- db_op %>%
         mutate(
                 gen = ifelse(gen == "", NA, gen),
-                g_imp = ifelse(g_imp == "", "", g_imp)
+                g_imp = ifelse(g_imp == "", NA, g_imp) #<- "" o NA
         )
 
 # Todos los pacientes y genes
@@ -31,7 +31,7 @@ for(i in seq_len(nrow(db_op))){
         pid <- db_op$Id[i]
         gene <- db_op$gen[i]
         mut <- db_op$g_imp[i]
-        if(!is.na(gene) & mut != ""){
+        if(!is.na(gene) & !is.na(mut)){
                 if(mat[gene, pid] == ""){
                         mat[gene, pid] <- mut
                 } else {
@@ -73,5 +73,8 @@ oncoPrint(
         remove_empty_rows = FALSE,
         column_title = "Pacientes",
         row_title = "Genes",
+        show_column_names = TRUE,
+        column_names_side = "top",
+        column_names_rot = 45,
         heatmap_legend_param = list(title = "Tipo de mutación")
 )

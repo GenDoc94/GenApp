@@ -196,7 +196,7 @@ server <- function(input, output, session) {
                 db_op <- db_op %>%
                         mutate(
                                 gen = ifelse(gen == "", NA, gen),
-                                g_imp = ifelse(g_imp == "", "", g_imp)
+                                g_imp = ifelse(g_imp == "", "", g_imp) # <- AQUÍ
                         )
                 
                 # Todos los pacientes y genes
@@ -301,6 +301,7 @@ server <- function(input, output, session) {
                 req(datos_wide())
                 df <- datos_wide()
                 df2 <- datos_long()
+                n_total <- nrow(df)
                 dx_texto <- df %>%
                         count(Dx, sort = TRUE) %>%
                         mutate(
@@ -320,6 +321,9 @@ server <- function(input, output, session) {
                         filter(contaje != 0) %>% 
                         nrow()
                 
+                mut0 <- df %>%
+                        filter(is.na(gen1)) %>%
+                        nrow()
                 
                 
                 resumen <- tibble(
@@ -329,15 +333,16 @@ server <- function(input, output, session) {
                                         "Edad, media (SD)",
                                         "Diagnósticos",
                                         "Número total de mutaciones",
-                                        "Media de mutaciones por paciente"),
+                                        "Media de mutaciones por paciente",
+                                        "Número de pacientes sin mutaciones (%)"),
                         Valor = c(paste0("Desde ", format(min(df$fechapet, na.rm = TRUE), "%d/%m/%Y"),", hasta ",format(max(df$fechapet, na.rm = TRUE), "%d/%m/%Y")),
                                 nrow(df),
                                 sexo_texto,
                                 paste0(round(mean(df$edad, na.rm = TRUE), 1)," (",round(sd(df$edad, na.rm = TRUE), 1),")"),
                                 dx_texto,
                                 count_mutation,
-                                paste0(round(mean(df2$contaje, na.rm = TRUE), 1),". (min: ",min(df2$contaje, na.rm = TRUE),", máx: ",max(df2$contaje, na.rm = TRUE),")")
-                                  )
+                                paste0(round(mean(df2$contaje, na.rm = TRUE), 1),". (min: ",min(df2$contaje, na.rm = TRUE),", máx: ",max(df2$contaje, na.rm = TRUE),")"),
+                                paste0(mut0," (",round(mut0/nrow(df)*100,1),")"))
                 )
                 DT::datatable(resumen,
                               escape = FALSE,
@@ -360,7 +365,7 @@ server <- function(input, output, session) {
                 ggplot(mutations(), aes(x=gen, y=porcentaje)) +
                         geom_bar(stat = "identity") +
                         theme_minimal() +
-                        labs(title = paste0("Top 15 genes +fr mutados (n = ", nrow(datos_wide()), ")"),
+                        labs(title = paste0("Pacientes con genes +mutados (n = ", nrow(datos_wide()), ")"),
                              x = "Gen",
                              y = "Frecuencia (%)") +
                         theme(axis.text.y = element_text(hjust = 1, size = 8)) +

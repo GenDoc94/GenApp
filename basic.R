@@ -17,6 +17,7 @@ db_wide <- read_excel("GenDB.xlsx") %>%
 
 db_wide$edad <- (db_wide$fechapet - db_wide$fechanac)/365.25
 
+#db_wide <- db_wide %>% filter(db_wide$Dx == "LMA")
 
 db_long <- db_wide %>%
         pivot_longer(
