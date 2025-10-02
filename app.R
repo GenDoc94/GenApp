@@ -8,6 +8,16 @@ library(ggplot2)
 library(DT)
 library(ComplexHeatmap)
 library(circlize)
+library(knitr)
+library(survival)
+library(tibble)
+library(lubridate)
+library(ggsurvfit)
+library(gtsummary)
+library(tidycmprsk)
+library(condsurv)
+library(prodlim)
+library(survminer)
 
 
 ui <- fluidPage(
@@ -46,8 +56,10 @@ ui <- fluidPage(
                                          uiOutput("graph_mut"),
                                          uiOutput("graph_mutfreq"),
                                          uiOutput("graph_op")),
-                                tabPanel("Analítico", #TAB4
-                                         h3("Contenido pestaña 3"))
+                                tabPanel("Analysis", #TAB4
+                                         uiOutput("analysis")),
+                                tabPanel("Survival", #TAB5
+                                         uiOutput(""))
                         )
                 )
         )
@@ -169,6 +181,46 @@ server <- function(input, output, session) {
                 return(dbgen)
         })
 
+        ##GENES_UNICOS
+        genes_unicos <- reactive({
+                req(datos_wide())
+                db_wide <- datos_wide()
+                cols_gen <- paste0("gen", 1:12)
+                genes_unicos <- db_wide %>%
+                        select(all_of(cols_gen)) %>%
+                        unlist() %>%
+                        unique() %>%
+                        na.omit() %>%
+                        .[. != ""]
+                genes_unicos
+        })
+        
+        
+        ##DBSV
+        dbsv <- reactive({
+                req(datos_wide())
+                db_wide <- datos_wide()
+                dbsv <- db_wide %>% select(Id, fechapet, fechaus, status, edad, sexo) %>% 
+                        mutate(
+                                fechapet = as.Date(fechapet),
+                                fechaus = as.Date(fechaus),
+                                status = factor(status),
+                                statusn = ifelse(status == "exitus", 1, 0))
+                dbsv$time <- dbsv$fechaus - dbsv$fechapet
+                dbsv
+        })
+        
+        ##DBSVMUT
+        dbsvmut <- reactive({
+                req(dbsv())
+                dbsv <- dbsv()
+                dbsvmut <- left_join(dbsv, mutaciones, by = "Id")
+                dbsvmut
+        })
+        
+        
+        
+        
         ##ONCOPRINTER MATRIX
         db_op <- reactive({
                 req(datos_long())
@@ -397,7 +449,7 @@ server <- function(input, output, session) {
         output$plot_op <- renderPlot({
                 req(db_op())
                 
-                # Definir funciones de color
+                #Color function
                 alter_fun = list(
                         background = function(x, y, w, h) grid::grid.rect(x, y, w, h,
                                                                           gp = grid::gpar(fill = "white", col = "lightgrey")),
@@ -421,7 +473,7 @@ server <- function(input, output, session) {
                         Inframe = "#9467bd"
                 )
                 
-                # Dibujar OncoPrint
+                #Draw OncoPrint
                 oncoPrint(
                         db_op(),
                         alter_fun = alter_fun,
@@ -434,12 +486,111 @@ server <- function(input, output, session) {
                         row_title = "Genes",
                         heatmap_legend_param = list(title = "Tipo de mutación")
                 )
-                
-                
-                
+        })
+
+        ##ANALYSIS TABLE
+        output$analysis <- renderUI({
+                req(datos_wide())
+                tagList(
+                        h3("Analysis Summary", style = "text-align: center;"),
+                        DT::DTOutput("analysis_table")
+                )
                 
         })
+        output$analysis_table <- DT::renderDT({
+                req(datos_wide())
+                req(dbsvmut())
+                #Bases
+                db_wide <- datos_wide()
+                genes_unicos <- genes_unicos()
+                dbsvmut <- dbsvmut()
+                
+                #Calculations
+                resultados_edad <- list()
+                for (i in genes_unicos) {
+                        #counting observation per group
+                        n_por_grupo <- table(dbsvmut[[i]])
+                        edad_media_gen <- as.list(tapply(dbsvmut$edad, dbsvmut[[i]], function(x) round(mean(x, na.rm = TRUE), 1)))
+                        #only if at least 2 per group
+                        if (all(n_por_grupo > 1)) {
+                                testgen <- t.test(edad ~ dbsvmut[[i]], data = dbsvmut)
+                                p_valor_testgen <- round(as.numeric(testgen[["p.value"]]), 3)
+                                p_valor_testgen <- ifelse(
+                                        p_valor_testgen < 0.001,
+                                        "<0.001",
+                                        sprintf("%.3f", p_valor_testgen)
+                                )
+                        } else {
+                                p_valor_testgen <- "NA"
+                        }
+                        if (testgen[["p.value"]] < 0.05){
+                                resultados_edad[i] <- paste0(edad_media_gen[[1]], " vs. ", edad_media_gen[[2]], " (", p_valor_testgen, "*)")
+                        } else {
+                                resultados_edad[i] <- paste0(edad_media_gen[[1]], " vs. ", edad_media_gen[[2]], " (", p_valor_testgen, ")")
+                        }
+                }
+                resultados_sexo <- list()
+                for (i in genes_unicos) {
+                        tabgen <- table(dbsvmut$sexo, dbsvmut[[i]])
+                        prop_mujeres <- round((prop.table(tabgen, margin = 2)["Mujer", ])*100, 1)
+                        prop_mujeres <- sprintf("%.1f", prop_mujeres)
+                        if (any(tabgen < 5)) {
+                                test <- fisher.test(tabgen)
+                                p_valor <- round(as.numeric(test[["p.value"]]), 3)
+                                p_valor<- ifelse(
+                                        p_valor < 0.001,
+                                        "<0.001F",
+                                        paste0(sprintf("%.3f", p_valor),"F")
+                                )
+                        } else {
+                                test <- chisq.test(tabgen)
+                                p_valor <- round(as.numeric(test[["p.value"]]), 3)
+                                p_valor <- ifelse(
+                                        p_valor < 0.001,
+                                        "<0.001C",
+                                        paste0(sprintf("%.3f", p_valor),"C")
+                                )
+                        }
+                        if (test[["p.value"]] < 0.05){
+                                resultados_sexo[i] <- paste0(prop_mujeres[[1]], "% vs. ", prop_mujeres[[2]], "% (", p_valor, "*)")
+                        } else {
+                                resultados_sexo[i] <- paste0(prop_mujeres[[1]], "% vs. ", prop_mujeres[[2]], "% (", p_valor, ")")
+                        }
+                        
+                }
+                resultados_sv <- list()
+                for (i in genes_unicos) {
+                        logrank <- survdiff(Surv(time, statusn) ~ dbsvmut[[i]], data = dbsvmut)
+                        pval <- 1 - pchisq(logrank$chisq, df = length(logrank$n) - 1)
+                        pval <- signif(pval, 3)
+                        if (pval < 0.05){
+                                resultados_sv[i] <- paste0(i,": ", sprintf("%.3f", pval),"*")
+                        } else {
+                                resultados_sv[i] <- paste0(i,": ", sprintf("%.3f", pval))
+                        }
+                }
+                
+                tabla_resumen <- data.frame(
+                        genes = genes_unicos,
+                        edad = unlist(resultados_edad[genes_unicos]),
+                        sexo = unlist(resultados_sexo[genes_unicos]),
+                        sv = unlist(resultados_sv[genes_unicos]),
+                        stringsAsFactors = FALSE
+                )
+                colnames(tabla_resumen) <- c("Genes", 
+                                             "Edad media: wt vs. mut (p-valor)", 
+                                             "Mujeres: %wt vs. %mut (p-valor)", 
+                                             "SV (p-valor)")
+                rownames(tabla_resumen) <- NULL
+                
+                #Table
+                DT::datatable(tabla_resumen,
+                              escape = FALSE,
+                              rownames = FALSE)
+        })
         
+        
+              
 }
 
 shinyApp(ui, server)
