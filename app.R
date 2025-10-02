@@ -62,8 +62,9 @@ ui <- fluidPage(
                                 tabPanel("Survival", #TAB5
                                          uiOutput("graph_sv"),
                                          uiOutput("descript_sv"),
-                                         uiOutput("graph_sv_gen"),
-                                         uiOutput("selector_gen"))
+                                         uiOutput("selector_gen"),
+                                         uiOutput("text_sv_gen"),
+                                         uiOutput("graph_sv_gen"))
                         )
                 )
         )
@@ -645,13 +646,34 @@ server <- function(input, output, session) {
                 )
         })
         
-        ##GRAPH SV BY MUTATION
-        output$graph_sv_gen <- renderUI({
+        ##TEXT SV BY MUTATION
+        output$text_sv_gen <- renderUI({
                 req(input$gene_select)
                 tags$p(paste("Has seleccionado: ", input$gene_select),
                        style = "text-align: center;")
         })
 
+        
+        ##GRAPH SV BY MUTATION
+        output$graph_sv_gen <- renderUI({
+                req(dbsv())
+                req(input$gene_select)
+                tagList(
+                        h3(paste0("Overall survival by ", input$gene_select), style = "text-align: center;"),
+                        plotOutput("plot_svgen", height = "400px")
+                )
+        })
+        output$plot_svgen <- renderPlot({
+                req(dbsv())
+                dbsv <- dbsv()
+                s <- survfit(Surv(time, statusn) ~ 1, data = dbsv) #simple
+                ggsurvfit(s) + 
+                        labs(x = "Time", y = "OS probability") + 
+                        add_confidence_interval() +
+                        add_risktable() +
+                        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1))
+                
+        })
         
              
 }
