@@ -16,8 +16,6 @@ ui <- fluidPage(
                 .tabla-pequena table { font-size: 8px; }
         ")),
         
-        
-        
         titlePanel("GenApp"),
         sidebarLayout(
                 sidebarPanel(
@@ -32,9 +30,9 @@ ui <- fluidPage(
                 ),
                 mainPanel(
                         tabsetPanel(
-                                tabPanel("Description",
+                                tabPanel("Description", #TAB1
                                          h3("Pending...")),
-                                tabPanel("Wide y Long",
+                                tabPanel("Wide y Long", #TAB2
                                          fluidRow(
                                                  column(6,
                                                         uiOutput("tabla_W_ui"),
@@ -43,12 +41,12 @@ ui <- fluidPage(
                                                         uiOutput("tabla_L_ui"),
                                                         uiOutput("button_long"))
                                          )),
-                                tabPanel("Descriptivo",
+                                tabPanel("Descriptivo", #TAB3
                                          uiOutput("descriptive"),
                                          uiOutput("graph_mut"),
                                          uiOutput("graph_mutfreq"),
                                          uiOutput("graph_op")),
-                                tabPanel("Analítico",
+                                tabPanel("Analítico", #TAB4
                                          h3("Contenido pestaña 3"))
                         )
                 )
@@ -59,24 +57,29 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
         
-        # Creamos un "indicador" lógico en el servidor
+        #-------
+        #PREBASE
+        #-------
+        ##Logic indicator in server
         output$archivoSubido <- reactive({
                 return(!is.null(input$archivo))
         })
-        # Esto es necesario para que reactive se use en un conditionalPanel
+        
+        ##Reactive in conditionalPanel
         outputOptions(output, "archivoSubido", suspendWhenHidden = FALSE)
         
+        ##DX FILTER
         output$nivel_dx <- renderUI({
-                
                 req(input$archivo)
                 df_original <- read_excel(input$archivo$datapath) %>%
                         mutate(Dx = factor(Dx))
                 selectInput("nivel", "Elige un diagnóstico", choices = levels(df_original$Dx))
         })
         
-        
-
-        #DATOS WIDE
+        #---------
+        #DATABASES
+        #---------
+        ##DATOS WIDE
         datos_wide <- reactive({
                 req(input$archivo)
                 df <- read_excel(input$archivo$datapath) %>%
@@ -89,8 +92,7 @@ server <- function(input, output, session) {
                                 Dx = factor(Dx),
                                 sexo = factor(sexo)
                         )
-                
-                
+                #With filter
                 if(isTRUE(input$filtrar) && !is.null(input$nivel) && input$nivel != ""){
                         df <- df %>% filter(Dx %in% input$nivel)
                 }
@@ -103,7 +105,7 @@ server <- function(input, output, session) {
                 #df
         })
         
-        #DATOS LONG
+        ##DATOS LONG
         datos_long <- reactive({
                 req(input$archivo)
                 df <- datos_wide() %>%
@@ -126,8 +128,7 @@ server <- function(input, output, session) {
                 df
         })
 
-
-        #MUTATIONS
+        ##MUTATIONS
         mutations <- reactive({
                 req(datos_wide())
                 db_wide <- datos_wide()
@@ -154,15 +155,7 @@ server <- function(input, output, session) {
                 return(mut)
         })
         
-        #MUTATIONS 15
-        mut15 <- reactive({
-                mut <- mutations() %>%
-                        slice_max(order_by = porcentaje, n=15)
-                return(mut)
-        })
-
-        
-        #MUTATIONSTYPE
+        ##MUTATIONSTYPE
         dbgen <- reactive({
                 req(datos_long())
                 db_long <- datos_long()
@@ -176,14 +169,11 @@ server <- function(input, output, session) {
                 return(dbgen)
         })
 
-
-        #ONCOPRINTER COMPUTATION
-        
-        
-        # Seleccionar columnas y asegurarse de que sean character
+        ##ONCOPRINTER MATRIX
         db_op <- reactive({
                 req(datos_long())
                 db_long <- datos_long()
+                # Seleccionar columnas y asegurarse de que sean character
                 db_op <- db_long %>% 
                         select(Id, gen, g_imp) %>%
                         mutate(
@@ -223,20 +213,12 @@ server <- function(input, output, session) {
                 
                 return(mat)
         })
-        
 
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        #TABLA WIDE (UI)
+        #-------
+        #RESULTS
+        #-------
+        ##WIDE TABLE (UI)
         output$tabla_W_ui <- renderUI({
                 req(datos_wide())
                 tagList(
@@ -250,7 +232,7 @@ server <- function(input, output, session) {
                                     fechapet = format(fechapet, "%d/%m/%Y")), 10)
         })
         
-        #TABLA LONG (UI)
+        ##LONG TABLE (UI)
         output$tabla_L_ui <- renderUI({
                 req(datos_long())
                 tagList(
@@ -264,7 +246,7 @@ server <- function(input, output, session) {
                                     fechapet = format(fechapet, "%d/%m/%Y")), 10)
         })
         
-        #DESCARGAR WIDE
+        ##WIDE DOWNLOAD (UI)
         output$button_wide <- renderUI({
                 req(datos_wide())
                 downloadButton("download_wide", "Descargar Wide (CSV)", class = "btn-sm")
@@ -276,7 +258,7 @@ server <- function(input, output, session) {
                 }
         )
         
-        #DESCARGAR LONG
+        ##LONG DOWNLOAD (UI)
         output$button_long <- renderUI({
                 req(datos_long())
                 downloadButton("download_long", "Descargar Long (CSV)", class = "btn-sm")
@@ -288,7 +270,7 @@ server <- function(input, output, session) {
                 }
         )
         
-        #DESCRIPTIVE
+        ##DESCRIPTIVE (UI)
         output$descriptive <- renderUI({
                 req(datos_wide())
                 tagList(
@@ -351,8 +333,7 @@ server <- function(input, output, session) {
                               rownames = FALSE)
         })
         
-
-        #GRÁFICA PACIENTES CON MUTACIONES
+        ##MUTATION GRAPH (UI)
         output$graph_mut <- renderUI({
                 req(mutations())
                 tagList(
@@ -374,9 +355,7 @@ server <- function(input, output, session) {
                         coord_flip()
         })
         
-        
-        
-        #GRÁFICA PACIENTES CON MUTACIONES
+        #MUTATION GRAPH FREQ (UI)
         output$graph_mutfreq <- renderUI({
                 req(dbgen())
                 tagList(
@@ -407,7 +386,7 @@ server <- function(input, output, session) {
                         )
         })        
         
-        #GRÁFICA ONCOPRINTER
+        ##ONCOPRINTER GRAPH (UI)
         output$graph_op <- renderUI({
                 req(db_op())
                 tagList(
@@ -460,7 +439,6 @@ server <- function(input, output, session) {
                 
                 
         })
-        
         
 }
 
