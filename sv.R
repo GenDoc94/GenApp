@@ -27,14 +27,14 @@ ggsurvfit(s) +
         labs(x = "Time", y = "OS probability") + 
         add_confidence_interval() +
         add_risktable() +
-        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1)) +
-        geom_hline(yintercept = 0.5, linetype = "dashed", color = "black") +
-        geom_vline(xintercept = 365, linetype = "dashed", color = "blue") +
-        annotate("text", 
-                 x = 365, 
-                 y = super$surv, 
-                 label = paste0("OS = ", round(sup365, 1), "%"), 
-                 vjust = -0.5, hjust = - 0.1 , size = 3.5, color = "blue")
+        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1))
+        #+ geom_hline(yintercept = 0.5, linetype = "dashed", color = "black") +
+        #geom_vline(xintercept = 365, linetype = "dashed", color = "blue") +
+        #annotate("text", 
+        #         x = 365, 
+        #         y = super$surv, 
+        #         label = paste0("OS = ", round(sup365, 1), "%"), 
+        #         vjust = -0.5, hjust = - 0.1 , size = 3.5, color = "blue")
 
 ggcuminc(s2) +
         labs(x = "Time", y = "Cumulative incidence") + 

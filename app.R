@@ -59,7 +59,7 @@ ui <- fluidPage(
                                 tabPanel("Analysis", #TAB4
                                          uiOutput("analysis")),
                                 tabPanel("Survival", #TAB5
-                                         uiOutput(""))
+                                         uiOutput("graph_sv"))
                         )
                 )
         )
@@ -589,6 +589,25 @@ server <- function(input, output, session) {
                               rownames = FALSE)
         })
         
+        ##GRAPH SV
+        output$graph_sv <- renderUI({
+                req(dbsv())
+                tagList(
+                        h3("Overall survival", style = "text-align: center;"),
+                        plotOutput("plot_sv", height = "400px")
+                )
+        })
+        output$plot_sv <- renderPlot({
+                req(dbsv())
+                dbsv <- dbsv()
+                s <- survfit(Surv(time, statusn) ~ 1, data = dbsv) #simple
+                ggsurvfit(s) + 
+                        labs(x = "Time", y = "OS probability") + 
+                        add_confidence_interval() +
+                        add_risktable() +
+                        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1))
+                
+        })
         
               
 }
