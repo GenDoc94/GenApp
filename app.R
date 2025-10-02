@@ -63,7 +63,6 @@ ui <- fluidPage(
                                          uiOutput("graph_sv"),
                                          uiOutput("descript_sv"),
                                          uiOutput("selector_gen"),
-                                         uiOutput("text_sv_gen"),
                                          uiOutput("graph_sv_gen"))
                         )
                 )
@@ -150,12 +149,7 @@ server <- function(input, output, session) {
                 req(datos_wide())
                 db_wide <- datos_wide()
                 cols_gen <- paste0("gen", 1:12)
-                genes_unicos <- db_wide %>%
-                        select(all_of(cols_gen)) %>%
-                        unlist() %>%
-                        unique() %>%
-                        na.omit() %>%
-                        .[. != ""]
+                genes_unicos <- genes_unicos()
                 indicadores <- t(apply(db_wide[cols_gen], 1, function(x) as.integer(genes_unicos %in% x)))
                 indicadores_df <- as.data.frame(indicadores)
                 names(indicadores_df) <- genes_unicos
@@ -646,14 +640,6 @@ server <- function(input, output, session) {
                 )
         })
         
-        ##TEXT SV BY MUTATION
-        output$text_sv_gen <- renderUI({
-                req(input$gene_select)
-                tags$p(paste("Has seleccionado: ", input$gene_select),
-                       style = "text-align: center;")
-        })
-
-        
         ##GRAPH SV BY MUTATION
         output$graph_sv_gen <- renderUI({
                 req(dbsv())
@@ -664,14 +650,32 @@ server <- function(input, output, session) {
                 )
         })
         output$plot_svgen <- renderPlot({
-                req(dbsv())
-                dbsv <- dbsv()
-                s <- survfit(Surv(time, statusn) ~ 1, data = dbsv) #simple
-                ggsurvfit(s) + 
-                        labs(x = "Time", y = "OS probability") + 
+                req(dbsvmut())
+                dbsvmut <- dbsvmut()
+                genes_unicos <- genes_unicos()
+                
+                for (g in genes_unicos) {
+                        dbsvmut[[g]] <- factor(dbsvmut[[g]], 
+                                               levels = c(0,1), 
+                                               labels = c(paste0(g, "wt"), paste0(g, "mut")))
+                }
+                
+                formula_sv <- reformulate(input$gene_select, response = "Surv(time, statusn)")
+                
+                smut <- survfit(formula_sv, data = dbsvmut)
+                logrank <- survdiff(formula_sv, data = dbsvmut)
+                
+                pval <- 1 - pchisq(logrank$chisq, df = length(logrank$n) - 1)
+                pval_text <- paste0("p = ", sprintf("%.3f", signif(pval, 3)))
+                
+                names(smut$strata) <- levels(dbsvmut[[input$gene_select]])
+                
+                ggsurvfit(smut) +
+                        labs(x = "Time", y = "OS probability") +
                         add_confidence_interval() +
                         add_risktable() +
-                        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1))
+                        add_censor_mark() +
+                        annotate("text", x = 0, y = 0.05, label = pval_text, hjust = 0, vjust = 0, size = 4, color = "black")
                 
         })
         
