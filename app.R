@@ -1,4 +1,5 @@
 library(shiny)
+library(shinycssloaders)
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -52,14 +53,17 @@ ui <- fluidPage(
                                                         uiOutput("button_long"))
                                          )),
                                 tabPanel("Descriptivo", #TAB3
-                                         uiOutput("descriptive"),
-                                         uiOutput("graph_mut"),
-                                         uiOutput("graph_mutfreq"),
-                                         uiOutput("graph_op")),
+                                         uiOutput("descriptive") %>% withSpinner(color = "#0dc5c1"),
+                                         uiOutput("graph_mut") %>% withSpinner(color = "#0dc5c1"),
+                                         uiOutput("graph_mutfreq") %>% withSpinner(color = "#0dc5c1"),
+                                         uiOutput("graph_op") %>% withSpinner(color = "#0dc5c1")),
                                 tabPanel("Analysis", #TAB4
                                          uiOutput("analysis")),
                                 tabPanel("Survival", #TAB5
-                                         uiOutput("graph_sv"))
+                                         uiOutput("graph_sv"),
+                                         uiOutput("descript_sv"),
+                                         uiOutput("graph_sv_gen"),
+                                         uiOutput("selector_gen"))
                         )
                 )
         )
@@ -609,7 +613,47 @@ server <- function(input, output, session) {
                 
         })
         
-              
+        ##DESCRIPT SV
+        output$descript_sv <- renderUI({
+                req(dbsv())
+                dbsv <- dbsv()
+                s <- survfit(Surv(time, statusn) ~ 1, data = dbsv) #simple
+                #Median Survival Time
+                MedianST <- quantile(prodlim(Surv(time, statusn) ~ 1, dbsv, reverse = FALSE))
+                MedianST <- ifelse(is.na(MedianST$quantile[3]), "Not reached", MedianST$quantile[3])
+                
+                #Median Follow Up Time
+                MedianFU <- quantile(prodlim(Surv(time, statusn) ~ 1, dbsv, reverse = TRUE))
+                MedianFU <- MedianFU$quantile[3]
+                
+                tagList(
+                        tags$p(paste("Median Survival Time: ", MedianST, "days."), style = "text-align: center;"),
+                        tags$p(paste("Median Follow Up Time: ", MedianFU, "days."), style = "text-align: center;")
+                )
+        })
+ 
+        ##SELECTOR GEN FOR GRAPH SV MUTATION
+        output$selector_gen <- renderUI({
+                req(datos_wide())
+                genes_unicos <- genes_unicos()
+                dbsvmut <- dbsvmut()
+                selectInput(
+                        inputId = "gene_select",
+                        label = "Select mutation",
+                        choices = genes_unicos,
+                        selected = genes_unicos[1]
+                )
+        })
+        
+        ##GRAPH SV BY MUTATION
+        output$graph_sv_gen <- renderUI({
+                req(input$gene_select)
+                tags$p(paste("Has seleccionado: ", input$gene_select),
+                       style = "text-align: center;")
+        })
+
+        
+             
 }
 
 shinyApp(ui, server)

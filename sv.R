@@ -17,10 +17,13 @@ sup365 <- super$surv*100
 paste0("Supervivencia al año: ", round(sup365, 2), "%")
 
 #Median Survival Time
-quantile(prodlim(Surv(time, statusn) ~ 1, dbsv, reverse = FALSE))
+MedianST <- quantile(prodlim(Surv(time, statusn) ~ 1, dbsv, reverse = FALSE))
+MedianST$quantile[3]
 
 #Median Follow Up Time
-quantile(prodlim(Surv(time, statusn) ~ 1, dbsv, reverse = TRUE))
+MedianFU <- quantile(prodlim(Surv(time, statusn) ~ 1, dbsv, reverse = TRUE))
+MedianFU$quantile[3]
+
 
 
 ggsurvfit(s) + 
