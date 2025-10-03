@@ -71,15 +71,22 @@ col_fun <- colorRamp2(c(min(M, na.rm=TRUE), 0, max(M, na.rm=TRUE)),
                       c("blue", "white", "red"))
 
 # 5. Heatmap con bordes negros solo en celdas con valor
+# Quitar primer nombre de fila (columna de la izquierda)
+rownames(M)[1] <- ""
+
+# Quitar último nombre de columna (fila de abajo)
+colnames(M)[ncol(M)] <- ""
 Heatmap(M,
-        name="-log10(p)",
+        name="-log10(p-value)",
         col=col_fun,
         cluster_rows=FALSE, cluster_columns=FALSE, # sin dendrogramas
         rect_gp=gpar(col=NA),
         na_col="white",
         row_names_side="left",       
         column_names_side="bottom",
-        column_names_rot=45,   
+        column_names_rot=45,
+        row_names_gp = gpar(fontsize = 8),
+        column_names_gp = gpar(fontsize = 8),
         cell_fun=function(j, i, x, y, width, height, fill) {
                 if (!is.na(M[i,j])) {
                         grid.rect(x, y, width, height,
