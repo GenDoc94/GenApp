@@ -57,12 +57,15 @@ stars <- matrix("", nrow=length(genes), ncol=length(genes),
 for (k in 1:nrow(results)) {
         g1 <- results$g1[k]; g2 <- results$g2[k]
         # guardamos en triángulo inferior
-        M[g2,g1] <- results$score[k]
-        if (results$pval[k] < 0.05) {
-                stars[g2,g1] <- "*"
+        M[g2, g1] <- results$score[k]
+        
+        # asignar asteriscos según p-valor
+        if (results$pval[k] < 0.01) {
+                stars[g2, g1] <- "**"
+        } else if (results$pval[k] < 0.05) {
+                stars[g2, g1] <- "*"
         }
 }
-
 # 4. Función de color
 col_fun <- colorRamp2(c(min(M, na.rm=TRUE), 0, max(M, na.rm=TRUE)),
                       c("blue", "white", "red"))
