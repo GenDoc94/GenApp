@@ -1,5 +1,6 @@
 library(shiny)
 library(shinycssloaders)
+library(bslib)
 
 #LIBRARY
 library(tidyverse)
@@ -40,11 +41,16 @@ ui <- fluidPage(
                         ),
                         conditionalPanel(
                                 condition = "input.filtrar == true",
-                                uiOutput("nivel_dx"))
+                                uiOutput("nivel_dx")
+                        ),
+                        conditionalPanel(
+                                condition = "output.archivoSubido",
+                                actionButton("informe", "Descargar informe")
+                        )
                 ),
                 mainPanel(
                         tabsetPanel(
-                                tabPanel("Description", #TAB1
+                                tabPanel("Introduction", #TAB1
                                          h3("Pending...")),
                                 tabPanel("Wide y Long", #TAB2
                                          fluidRow(
@@ -55,7 +61,7 @@ ui <- fluidPage(
                                                         uiOutput("tabla_L_ui"),
                                                         uiOutput("button_long"))
                                          )),
-                                tabPanel("Descriptivo", #TAB3
+                                tabPanel("Descriptive", #TAB3
                                          uiOutput("descriptive") %>% withSpinner(color = "#0dc5c1"),
                                          uiOutput("graph_mut") %>% withSpinner(color = "#0dc5c1"),
                                          uiOutput("graph_mutfreq") %>% withSpinner(color = "#0dc5c1"),
@@ -79,7 +85,7 @@ server <- function(input, output, session) {
         
         #-------
         #PREBASE
-        #-------
+
         ##Logic indicator in server
         output$archivoSubido <- reactive({
                 return(!is.null(input$archivo))
@@ -96,9 +102,9 @@ server <- function(input, output, session) {
                 selectInput("nivel", "Elige un diagnóstico", choices = levels(df_original$Dx))
         })
         
-        #---------
+        #-------
         #DATABASES
-        #---------
+
         ##DATOS WIDE
         datos_wide <- reactive({
                 req(input$archivo)
@@ -118,11 +124,7 @@ server <- function(input, output, session) {
                 }
                 
                 df
-                
-                
-                
-                #lo que devuelves
-                #df
+
         })
         
         ##DATOS LONG
@@ -327,7 +329,7 @@ server <- function(input, output, session) {
         
         #-------
         #RESULTS
-        #-------
+
         ##WIDE TABLE (UI)
         output$tabla_W_ui <- renderUI({
                 req(datos_wide())
